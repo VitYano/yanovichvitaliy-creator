@@ -1,0 +1,84 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>NI Dashboard</title>
+    <style>
+        body {
+            margin: 0;
+            font-family: Arial, sans-serif;
+            background: #0f172a;
+            color: white;
+        }
+
+        .wrap {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 24px;
+        }
+
+        h1 {
+            margin-top: 0;
+        }
+
+        .panel {
+            background: #1e293b;
+            border-radius: 14px;
+            padding: 16px;
+            margin-bottom: 20px;
+        }
+
+        .links a {
+            color: #93c5fd;
+            margin-right: 16px;
+            text-decoration: none;
+        }
+
+            .links a:hover {
+                text-decoration: underline;
+            }
+
+        img {
+            width: 100%;
+            border-radius: 12px;
+            background: white;
+            padding: 8px;
+            box-sizing: border-box;
+        }
+
+        .muted {
+            color: #94a3b8;
+            font-size: 14px;
+        }
+    </style>
+</head>
+<body>
+    <div class="wrap">
+        <h1>NI Dashboard</h1>
+
+        <div class="panel">
+            <div class="muted">Latest 60-second graph from NI acquisition</div>
+        </div>
+
+        <div class="panel">
+            <img id="graph" src="images/latest.png" alt="Latest graph" />
+        </div>
+
+        <div class="panel links">
+            <a href="images/latest.png" target="_blank">Open PNG</a>
+            <a href="data/latest.json" target="_blank">Open JSON</a>
+            <a href="data/latest.csv" target="_blank">Open CSV</a>
+        </div>
+    </div>
+
+    <script>
+    function refreshGraph() {
+      const img = document.getElementById("graph");
+      img.src = "images/latest.png?t=" + Date.now();
+    }
+
+    setInterval(refreshGraph, 30000);
+    </script>
+</body>
+</html>
