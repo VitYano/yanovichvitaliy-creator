@@ -5,6 +5,10 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>NI Dashboard</title>
     <style>
+        * {
+            box-sizing: border-box;
+        }
+
         body {
             margin: 0;
             font-family: Arial, sans-serif;
@@ -20,6 +24,7 @@
 
         h1 {
             margin-top: 0;
+            margin-bottom: 20px;
         }
 
         .panel {
@@ -27,6 +32,30 @@
             border-radius: 14px;
             padding: 16px;
             margin-bottom: 20px;
+        }
+
+        .grid {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 16px;
+            margin-bottom: 20px;
+        }
+
+        .card {
+            background: #1e293b;
+            border-radius: 14px;
+            padding: 16px;
+        }
+
+        .label {
+            color: #94a3b8;
+            font-size: 14px;
+            margin-bottom: 8px;
+        }
+
+        .value {
+            font-size: 26px;
+            font-weight: bold;
         }
 
         .links a {
@@ -51,6 +80,28 @@
             color: #94a3b8;
             font-size: 14px;
         }
+
+        .ok {
+            color: #22c55e;
+            font-weight: bold;
+        }
+
+        .bad {
+            color: #ef4444;
+            font-weight: bold;
+        }
+
+        @media (max-width: 900px) {
+            .grid {
+                grid-template-columns: 1fr 1fr;
+            }
+        }
+
+        @media (max-width: 600px) {
+            .grid {
+                grid-template-columns: 1fr;
+            }
+        }
     </style>
 </head>
 <body>
@@ -58,7 +109,35 @@
         <h1>NI Dashboard</h1>
 
         <div class="panel">
-            <div class="muted">Latest 60-second graph from NI acquisition</div>
+            <div class="muted">Accumulated data from NI acquisition</div>
+        </div>
+
+        <div class="grid">
+            <div class="card">
+                <div class="label">AI0</div>
+                <div class="value" id="ai0">--</div>
+            </div>
+
+            <div class="card">
+                <div class="label">AI1</div>
+                <div class="value" id="ai1">--</div>
+            </div>
+
+            <div class="card">
+                <div class="label">AI2</div>
+                <div class="value" id="ai2">--</div>
+            </div>
+
+            <div class="card">
+                <div class="label">Points Count</div>
+                <div class="value" id="pointsCount">--</div>
+            </div>
+        </div>
+
+        <div class="panel">
+            <div><b>Device:</b> <span id="device">--</span></div>
+            <div><b>Last Update:</b> <span id="updatedAt">--</span></div>
+            <div><b>Status:</b> <span id="statusText" class="muted">Loading...</span></div>
         </div>
 
         <div class="panel">
@@ -66,19 +145,90 @@
         </div>
 
         <div class="panel links">
-            <a href="images/latest.png" target="_blank">Open PNG</a>
-            <a href="data/latest.json" target="_blank">Open JSON</a>
-            <a href="data/latest.csv" target="_blank">Open CSV</a>
+            <a id="pngLink" href="images/latest.png" target="_blank">Open PNG</a>
+            <a id="jsonLink" href="data/latest.json" target="_blank">Open JSON</a>
+            <a id="csvLink" href="data/latest.csv" target="_blank">Open CSV</a>
         </div>
     </div>
 
     <script>
-    function refreshGraph() {
-      const img = document.getElementById("graph");
-      img.src = "images/latest.png?t=" + Date.now();
-    }
+        const elAI0 = document.getElementById("ai0");
+        const elAI1 = document.getElementById("ai1");
+        const elAI2 = document.getElementById("ai2");
+        const elPointsCount = document.getElementById("pointsCount");
+        const elDevice = document.getElementById("device");
+        const elUpdatedAt = document.getElementById("updatedAt");
+        const elStatusText = document.getElementById("statusText");
+        const elGraph = document.getElementById("graph");
 
-    setInterval(refreshGraph, 30000);
+        function fmtNumber(value) {
+            const n = Number(value);
+            if (!Number.isFinite(n)) return "--";
+            return n.toFixed(4) + " V";
+        }
+
+        function fmtTime(iso) {
+            if (!iso) return "--";
+
+            const d = new Date(iso);
+            if (Number.isNaN(d.getTime())) return iso;
+
+            return d.toLocaleString("en-GB", {
+                year: "numeric",
+                month: "2-digit",
+                day: "2-digit",
+                hour: "2-digit",
+                minute: "2-digit",
+                second: "2-digit"
+            });
+        }
+
+        function refreshGraph() {
+            elGraph.src = "images/latest.png?t=" + Date.now();
+            document.getElementById("pngLink").href = "images/latest.png?t=" + Date.now();
+            document.getElementById("jsonLink").href = "data/latest.json?t=" + Date.now();
+            document.getElementById("csvLink").href = "data/latest.csv?t=" + Date.now();
+        }
+
+        async function refreshData() {
+            try {
+                const response = await fetch("data/latest.json?t=" + Date.now(), {
+                    cache: "no-store"
+                });
+
+                if (!response.ok) {
+                    throw new Error("HTTP " + response.status);
+                }
+
+                const data = await response.json();
+                const latest = data.latest || null;
+
+                elDevice.textContent = data.device || "--";
+                elUpdatedAt.textContent = fmtTime(data.updated_at || data.last_cycle_ended_at || data.ended_at);
+                elPointsCount.textContent = data.points_count ?? "--";
+
+                if (latest) {
+                    elAI0.textContent = fmtNumber(latest.ai0);
+                    elAI1.textContent = fmtNumber(latest.ai1);
+                    elAI2.textContent = fmtNumber(latest.ai2);
+                } else {
+                    elAI0.textContent = "--";
+                    elAI1.textContent = "--";
+                    elAI2.textContent = "--";
+                }
+
+                elStatusText.textContent = "Updated";
+                elStatusText.className = "ok";
+
+                refreshGraph();
+            } catch (err) {
+                elStatusText.textContent = "Update failed: " + err.message;
+                elStatusText.className = "bad";
+            }
+        }
+
+        refreshData();
+        setInterval(refreshData, 30000);
     </script>
 </body>
 </html>
